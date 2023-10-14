@@ -1,0 +1,58 @@
+name: Build
+
+on:
+  pull_request:
+    paths-ignore:
+      - '.images/*'
+      - 'LICENSE'
+      - '.gitignore'
+      - '*.md'
+    branches: [ master ]
+  push:
+    paths-ignore:
+      - '.images/*'
+      - 'LICENSE'
+      - '.gitignore'
+      - '*.md'
+    branches: [ master ]
+
+jobs:
+  Xbox:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install and Setup Dependencies
+      run: |
+        sudo apt-get update -y && sudo apt-get install -y flex bison clang lld llvm
+        export BUILD_TAG=build-$(date -u +'%Y%m%d%H%M')
+        echo "BUILD_TAG=$BUILD_TAG" >> $GITHUB_ENV
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+      with:
+        submodules: recursive
+    - name: Clone nxdk
+      uses: actions/checkout@v3
+      with:
+        repository: XboxDev/nxdk
+        path: nxdk
+        submodules: recursive
+    - name: Compile
+      run: |
+        eval $(./nxdk/bin/activate -s)
+        make -j$(nproc)
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        path: |
+          XBOX_CHALLENGES.iso
+          bin
+
+    - name: Upload Release
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: bin/default.xbe
+        asset_name: default.xbe
+        tag: ${{ env.BUILD_TAG }}
+        overwrite: true
+        body: "Auto release"
+            
